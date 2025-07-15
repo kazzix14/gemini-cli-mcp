@@ -35,16 +35,16 @@ struct GeminiConfigArgs {
 
 async fn run_gemini_command(args: Vec<String>) -> Result<String> {
     use tokio::process::Command;
-    
+
     tracing::debug!("Running gemini command with args: {:?}", args);
-    
+
     let mut cmd = Command::new("gemini");
-    
+
     // Set environment variables from .env if they exist
     if let Ok(project) = std::env::var("GOOGLE_CLOUD_PROJECT") {
         cmd.env("GOOGLE_CLOUD_PROJECT", project);
     }
-    
+
     let mut child = cmd
         .args(&args)
         .stdin(std::process::Stdio::piped())
@@ -52,21 +52,21 @@ async fn run_gemini_command(args: Vec<String>) -> Result<String> {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .context("Failed to spawn gemini command")?;
-    
+
     // Close stdin to signal EOF
     if let Some(stdin) = child.stdin.take() {
         drop(stdin);
     }
-    
+
     let output = child.wait_with_output().await
         .context("Failed to wait for gemini command")?;
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-    
+
     tracing::debug!("Command stdout: {}", stdout);
     tracing::debug!("Command stderr: {}", stderr);
-    
+
     if output.status.success() {
         Ok(stdout)
     } else {
@@ -89,34 +89,34 @@ impl GeminiServer {
             tool_router: Self::tool_router(),
         }
     }
-    
+
     #[tool(description = "Send a prompt to the Gemini CLI")]
     async fn gemini_prompt(
         &self,
         Parameters(GeminiPromptArgs { prompt, model, max_tokens: _max_tokens, temperature: _temperature }): Parameters<GeminiPromptArgs>,
     ) -> Result<String, McpError> {
         let mut cmd_args = vec![];
-        
+
         // Add prompt
         cmd_args.push("--prompt".to_string());
         cmd_args.push(prompt);
-        
+
         // Add optional model
         if let Some(model_str) = model {
             cmd_args.push("--model".to_string());
             cmd_args.push(model_str);
         }
-        
+
         // Note: gemini CLI doesn't seem to support max_tokens or temperature directly
         // but keeping them here for potential future support
-        
+
         tracing::info!("Calling gemini with prompt");
-        
+
         run_gemini_command(cmd_args).await
             .map_err(|e| McpError::internal_error(e.to_string(), None))
     }
-    
-    
+
+
     #[tool(description = "Configure Gemini CLI settings")]
     async fn gemini_config(
         &self,
@@ -145,29 +145,29 @@ You can reference as many files as needed - just mention them in your prompt!
 ## Usage Examples:
 
 ### Simple prompts:
-- "Ask Gemini: What is the difference between async and sync in JavaScript?"
-- "Geminiに聞いて：Rustのownershipについて説明して"
+- "What is the difference between async and sync in JavaScript?"
+- "Rustのownershipについて説明して"
 
 ### File analysis (specify one or many file paths):
-- "Using Gemini, analyze the code in src/main.rs and suggest improvements"
-- "Geminiでpackage.jsonとpackage-lock.jsonを比較して、依存関係の問題を指摘して"
-- "Ask Gemini to review src/api/handler.ts, tests/handler.test.ts, and src/api/types.ts together"
-- "Gemini, check if src/server.js, src/routes/*.js, and src/middleware/*.js follow best practices"
+- "analyze the code in src/main.rs and suggest improvements"
+- "package.jsonとpackage-lock.jsonを比較して、依存関係の問題を指摘して"
+- "review src/api/handler.ts, tests/handler.test.ts, and src/api/types.ts together"
+- "check if src/server.js, src/routes/*.js, and src/middleware/*.js follow best practices"
 
 ### Code refactoring (any number of files):
-- "Have Gemini refactor the database logic across db/connection.js, db/models.js, and db/migrations/*.js"
-- "Geminiを使ってtest/*.pyとsrc/*.pyの整合性を確認して改善案を提案して"
-- "Gemini, optimize lib/parser.js, lib/tokenizer.js, and their test files"
+- "refactor the database logic across db/connection.js, db/models.js, and db/migrations/*.js"
+- "test/*.pyとsrc/*.pyの整合性を確認して改善案を提案して"
+- "optimize lib/parser.js, lib/tokenizer.js, and their test files"
 
 ### Model selection:
 - "Using gemini-2.5-flash, summarize the README.md"
-- "gemini-2.5-proで、src/complex_algorithm.rsの複雑なアルゴリズムを最適化して"
+- "src/complex_algorithm.rsの複雑なアルゴリズムを最適化して"
 
 ## Tips:
 - Specify file paths when you want Gemini to analyze specific files
-- Claude reads the files automatically - you don't need to paste contents
+- Gemini reads the files automatically - you don't need to paste contents
 - Default model is gemini-2.5-pro, but gemini-2.5-flash is faster for simple tasks
-- Requires GOOGLE_CLOUD_PROJECT environment variable to be set"#.into()),
+"#.into()),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
@@ -178,21 +178,21 @@ You can reference as many files as needed - just mention them in your prompt!
 async fn main() -> Result<(), McpError> {
     // Load .env file
     dotenv::dotenv().ok();
-    
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
-    
+
     tracing::info!("Starting Gemini CLI MCP server");
-    
+
     use rmcp::transport::io::stdio;
-    
+
     let service = GeminiServer::new()
         .serve(stdio())
         .await
         .map_err(|e| McpError::internal_error(format!("Failed to start server: {:?}", e), None))?;
-    
+
     service.waiting().await.map_err(|e| McpError::internal_error(format!("Server error: {:?}", e), None))?;
-    
+
     Ok(())
 }
