@@ -32,24 +32,47 @@ struct GeminiConfigArgs {
     api_key: Option<String>,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct Empty {}
 
 async fn run_gemini_command(args: Vec<String>) -> Result<String> {
     use tokio::process::Command;
     
-    let output = Command::new("gemini")
+    tracing::debug!("Running gemini command with args: {:?}", args);
+    
+    let mut cmd = Command::new("gemini");
+    
+    // Set environment variables from .env if they exist
+    if let Ok(project) = std::env::var("GOOGLE_CLOUD_PROJECT") {
+        cmd.env("GOOGLE_CLOUD_PROJECT", project);
+    }
+    
+    let mut child = cmd
         .args(&args)
-        .output()
-        .await
-        .context("Failed to execute gemini command")?;
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .context("Failed to spawn gemini command")?;
+    
+    // Close stdin to signal EOF
+    if let Some(stdin) = child.stdin.take() {
+        drop(stdin);
+    }
+    
+    let output = child.wait_with_output().await
+        .context("Failed to wait for gemini command")?;
+    
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+    
+    tracing::debug!("Command stdout: {}", stdout);
+    tracing::debug!("Command stderr: {}", stderr);
     
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        Ok(stdout)
     } else {
         anyhow::bail!(
             "Gemini command failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            stderr
         )
     }
 }
@@ -70,52 +93,41 @@ impl GeminiServer {
     #[tool(description = "Send a prompt to the Gemini CLI")]
     async fn gemini_prompt(
         &self,
-        Parameters(GeminiPromptArgs { prompt, model, max_tokens, temperature }): Parameters<GeminiPromptArgs>,
+        Parameters(GeminiPromptArgs { prompt, model, max_tokens: _max_tokens, temperature: _temperature }): Parameters<GeminiPromptArgs>,
     ) -> Result<String, McpError> {
-        let mut cmd_args = vec!["--prompt".to_string(), prompt];
+        let mut cmd_args = vec![];
         
+        // Add prompt
+        cmd_args.push("--prompt".to_string());
+        cmd_args.push(prompt);
+        
+        // Add optional model
         if let Some(model_str) = model {
             cmd_args.push("--model".to_string());
             cmd_args.push(model_str);
         }
         
-        if let Some(tokens) = max_tokens {
-            cmd_args.push("--max-tokens".to_string());
-            cmd_args.push(tokens.to_string());
-        }
+        // Note: gemini CLI doesn't seem to support max_tokens or temperature directly
+        // but keeping them here for potential future support
         
-        if let Some(temp) = temperature {
-            cmd_args.push("--temperature".to_string());
-            cmd_args.push(temp.to_string());
-        }
+        tracing::info!("Calling gemini with prompt");
         
         run_gemini_command(cmd_args).await
             .map_err(|e| McpError::internal_error(e.to_string(), None))
     }
     
-    #[tool(description = "List available Gemini models")]
-    async fn gemini_list_models(
-        &self,
-        Parameters(_args): Parameters<Empty>,
-    ) -> Result<String, McpError> {
-        run_gemini_command(vec!["models".to_string()]).await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))
-    }
     
     #[tool(description = "Configure Gemini CLI settings")]
     async fn gemini_config(
         &self,
         Parameters(GeminiConfigArgs { api_key }): Parameters<GeminiConfigArgs>,
     ) -> Result<String, McpError> {
-        let mut cmd_args = vec!["config".to_string()];
-        
-        if let Some(key) = api_key {
-            cmd_args.push("--api-key".to_string());
-            cmd_args.push(key);
+        // Note: gemini CLI configuration is typically done through environment variables
+        if let Some(_key) = api_key {
+            Ok("Note: Gemini API key should be set via GOOGLE_API_KEY environment variable".to_string())
+        } else {
+            Ok("Gemini CLI configuration:\n- API key: Set via GOOGLE_API_KEY environment variable\n- Model: Use --model flag (default: gemini-2.5-pro)".to_string())
         }
-        
-        run_gemini_command(cmd_args).await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))
     }
 }
 
@@ -132,6 +144,9 @@ impl ServerHandler for GeminiServer {
 
 #[tokio::main]
 async fn main() -> Result<(), McpError> {
+    // Load .env file
+    dotenv::dotenv().ok();
+    
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();

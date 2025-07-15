@@ -4,7 +4,7 @@ This is an MCP (Model Context Protocol) server that exposes Gemini CLI functiona
 
 ## Features
 
-The MCP server provides three tools:
+The MCP server provides two tools:
 
 1. **gemini_prompt** - Send a prompt to the Gemini CLI
    - Parameters:
@@ -13,9 +13,7 @@ The MCP server provides three tools:
      - `max_tokens` (optional): Maximum number of tokens
      - `temperature` (optional): Temperature for sampling
 
-2. **gemini_list_models** - List available Gemini models
-
-3. **gemini_config** - Configure Gemini CLI settings
+2. **gemini_config** - Configure Gemini CLI settings
    - Parameters:
      - `api_key` (optional): API key for Gemini
 
@@ -23,6 +21,14 @@ The MCP server provides three tools:
 
 - Rust (for building)
 - Gemini CLI installed and available in PATH
+
+## Configuration
+
+Create a `.env` file in the project root with your Google Cloud project ID:
+
+```
+GOOGLE_CLOUD_PROJECT=your-project-id
+```
 
 ## Building
 
