@@ -137,26 +137,35 @@ impl ServerHandler for GeminiServer {
         ServerInfo {
             instructions: Some(r#"Gemini CLI MCP Server - Access Google's Gemini AI models through Claude
 
+## How to reference files
+When you want Gemini to analyze files, specify the file paths in your prompt.
+Claude will automatically read all the file contents and include them in the context.
+You can reference as many files as needed - just mention them in your prompt!
+
 ## Usage Examples:
 
 ### Simple prompts:
 - "Ask Gemini: What is the difference between async and sync in JavaScript?"
 - "Geminiに聞いて：Rustのownershipについて説明して"
 
-### File analysis:
+### File analysis (specify one or many file paths):
 - "Using Gemini, analyze the code in src/main.rs and suggest improvements"
-- "Geminiでpackage.jsonを見て、依存関係の問題を指摘して"
+- "Geminiでpackage.jsonとpackage-lock.jsonを比較して、依存関係の問題を指摘して"
+- "Ask Gemini to review src/api/handler.ts, tests/handler.test.ts, and src/api/types.ts together"
+- "Gemini, check if src/server.js, src/routes/*.js, and src/middleware/*.js follow best practices"
 
-### Code refactoring:
-- "Have Gemini refactor the database logic in db/connection.js"
-- "Geminiを使ってtest.pyをより効率的に書き直して"
+### Code refactoring (any number of files):
+- "Have Gemini refactor the database logic across db/connection.js, db/models.js, and db/migrations/*.js"
+- "Geminiを使ってtest/*.pyとsrc/*.pyの整合性を確認して改善案を提案して"
+- "Gemini, optimize lib/parser.js, lib/tokenizer.js, and their test files"
 
 ### Model selection:
 - "Using gemini-2.5-flash, summarize the README.md"
-- "gemini-2.5-proで、複雑なアルゴリズムを実装して"
+- "gemini-2.5-proで、src/complex_algorithm.rsの複雑なアルゴリズムを最適化して"
 
 ## Tips:
-- Reference specific files in your prompts - Claude will read them automatically
+- Specify file paths when you want Gemini to analyze specific files
+- Claude reads the files automatically - you don't need to paste contents
 - Default model is gemini-2.5-pro, but gemini-2.5-flash is faster for simple tasks
 - Requires GOOGLE_CLOUD_PROJECT environment variable to be set"#.into()),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
