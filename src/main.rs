@@ -135,7 +135,30 @@ impl GeminiServer {
 impl ServerHandler for GeminiServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("MCP server that exposes Gemini CLI functionality through tools".into()),
+            instructions: Some(r#"Gemini CLI MCP Server - Access Google's Gemini AI models through Claude
+
+## Usage Examples:
+
+### Simple prompts:
+- "Ask Gemini: What is the difference between async and sync in JavaScript?"
+- "Geminiに聞いて：Rustのownershipについて説明して"
+
+### File analysis:
+- "Using Gemini, analyze the code in src/main.rs and suggest improvements"
+- "Geminiでpackage.jsonを見て、依存関係の問題を指摘して"
+
+### Code refactoring:
+- "Have Gemini refactor the database logic in db/connection.js"
+- "Geminiを使ってtest.pyをより効率的に書き直して"
+
+### Model selection:
+- "Using gemini-2.5-flash, summarize the README.md"
+- "gemini-2.5-proで、複雑なアルゴリズムを実装して"
+
+## Tips:
+- Reference specific files in your prompts - Claude will read them automatically
+- Default model is gemini-2.5-pro, but gemini-2.5-flash is faster for simple tasks
+- Requires GOOGLE_CLOUD_PROJECT environment variable to be set"#.into()),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
