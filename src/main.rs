@@ -41,6 +41,9 @@ async fn run_gemini_command(args: Vec<String>) -> Result<String> {
     let mut cmd = Command::new("gemini");
 
     // Set environment variables from .env if they exist
+    if let Ok(api_key) = std::env::var("GOOGLE_API_KEY") {
+        cmd.env("GOOGLE_API_KEY", api_key);
+    }
     if let Ok(project) = std::env::var("GOOGLE_CLOUD_PROJECT") {
         cmd.env("GOOGLE_CLOUD_PROJECT", project);
     }
@@ -176,7 +179,15 @@ You can reference as many files as needed - just mention them in your prompt!
 
 #[tokio::main]
 async fn main() -> Result<(), McpError> {
-    // Load .env file
+    // Load .env file from $HOME directory if exists
+    if let Ok(home) = std::env::var("HOME") {
+        let home_env_path = std::path::Path::new(&home).join(".env");
+        if home_env_path.exists() {
+            dotenv::from_path(&home_env_path).ok();
+        }
+    }
+    
+    // Load .env file from current directory (overwrites $HOME/.env values)
     dotenv::dotenv().ok();
 
     tracing_subscriber::fmt()
