@@ -110,4 +110,4 @@ The server is built using the rmcp Rust SDK and uses the MCP protocol for commun
 
 ## License
 
-[Your license here]
+AGPLv3
